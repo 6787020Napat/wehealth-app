@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // นำเข้า Firestore
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // 1. ต้องนำเข้าตัวนี้เพื่อทำระบบ Login
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -9,22 +10,19 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  // สร้าง Controller สำหรับแต่ละช่องกรอกข้อมูล
   final _firstnameController = TextEditingController();
   final _surnameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  // ฟังก์ชันสำหรับจัดการการกดปุ่ม Sign up และบันทึกข้อมูลลง Firebase
   void _handleSignUp() async {
     String firstname = _firstnameController.text.trim();
     String surname = _surnameController.text.trim();
     String email = _emailController.text.trim();
-    String password = _passwordController.text;
-    String confirmPassword = _confirmPasswordController.text;
+    String password = _passwordController.text.trim(); // เพิ่ม .trim() ป้องกันช่องว่าง
+    String confirmPassword = _confirmPasswordController.text.trim();
 
-    // 1. ตรวจสอบว่ากรอกข้อมูลครบทุกช่องหรือไม่
     if (firstname.isEmpty || surname.isEmpty || email.isEmpty || password.isEmpty || confirmPassword.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('กรุณากรอกข้อมูลให้ครบทุกช่อง')),
@@ -32,7 +30,6 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    // 2. ตรวจสอบว่ารหัสผ่านตรงกันหรือไม่
     if (password != confirmPassword) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('รหัสผ่านไม่ตรงกัน')),
@@ -40,44 +37,53 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    // --- ส่วนที่เพิ่มใหม่: บันทึกข้อมูลลง Cloud Firestore ---
     try {
-      // แสดง Loading ระหว่างรอส่งข้อมูล
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => const Center(child: CircularProgressIndicator()),
       );
 
-      // บันทึกลง Collection ชื่อ 'users'
-      await FirebaseFirestore.instance.collection('users').add({
+      // --- ส่วนที่แก้ไข: สร้างบัญชีผู้ใช้ในระบบ Authentication ก่อน ---
+      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // --- บันทึกข้อมูลเสริมลง Firestore โดยใช้ UID จาก Authentication ---
+      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+        'uid': userCredential.user!.uid,
         'firstname': firstname,
         'surname': surname,
         'email': email,
-        'created_at': FieldValue.serverTimestamp(), // เก็บเวลาที่สมัคร
+        'created_at': FieldValue.serverTimestamp(),
       });
 
-      // ปิด Loading
       if (!mounted) return;
-      Navigator.pop(context);
+      Navigator.pop(context); // ปิด Loading
 
-      // แสดงข้อความสำเร็จ
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('สมัครสมาชิกและบันทึกข้อมูลสำเร็จ!')),
+        const SnackBar(content: Text('สมัครสมาชิกสำเร็จ!')),
       );
 
-      // ย้อนกลับไปหน้า Login
-      Navigator.pop(context);
+      Navigator.pop(context); // ย้อนกลับหน้า Login
 
+    } on FirebaseAuthException catch (e) {
+      Navigator.pop(context); // ปิด Loading
+      String message = 'เกิดข้อผิดพลาด';
+      if (e.code == 'email-already-in-use') {
+        message = 'อีเมลนี้ถูกใช้งานไปแล้ว';
+      } else if (e.code == 'weak-password') {
+        message = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
-      // ปิด Loading ถ้าเกิด Error
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
+  // ... ส่วน dispose และ build เหมือนเดิมทุกประการ ...
   @override
   void dispose() {
     _firstnameController.dispose();
