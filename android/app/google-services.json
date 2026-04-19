@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "217887410294",
+    "project_id": "wehealth-73e0d",
+    "storage_bucket": "wehealth-73e0d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:217887410294:android:d985d95de8fb7d054f3757",
+        "android_client_info": {
+          "package_name": "com.example.wehealth"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdoqjlGYFQNiUi3QB0VjmhAUxOctZY4lc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
